@@ -433,14 +433,11 @@
 
     [self endPhongEncoder];
     MTLRegion clearRegion = MTLRegionMake2D(0, 0, 0, 0);
-    if (!isScissorEnabled) {
-        [self endCurrentRenderEncoder];
-        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
-        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
-        // clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
-    } else {
+    if (isScissorEnabled) {
         clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
+    } else {
+        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
+        clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
     }
 
     CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
@@ -461,9 +458,17 @@
     id<MTLRenderPipelineState> pipeline = [pipelineManager getClearRttPipeState];
 
     [renderEncoder setRenderPipelineState:pipeline];
-    if (isScissorEnabled) {
+
+    /* if (isScissorEnabled) {
         [renderEncoder setScissorRect:scissorRect];
-    }
+    } else {
+        scissorRect.x = 0;
+        scissorRect.y = 0;
+        id<MTLTexture> currRtt = rttPassDesc.colorAttachments[0].texture;
+        scissorRect.width  = currRtt.width;
+        scissorRect.height = currRtt.height;
+        [renderEncoder setScissorRect:scissorRect];
+    } */
 
     [renderEncoder setVertexBytes:&mvpMatrix
                            length:sizeof(mvpMatrix)
@@ -488,12 +493,6 @@
     clearColor[1] = green;
     clearColor[2] = blue;
     clearColor[3] = alpha;
-
-    if (!isScissorEnabled) {
-        [self endCurrentRenderEncoder];
-        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
-    }
 
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
